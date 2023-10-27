@@ -2,6 +2,7 @@
 import argparse
 import pathlib
 import pandas as pd
+from pashea import Default
 from pashea import AnalizeHEA
 
 """
