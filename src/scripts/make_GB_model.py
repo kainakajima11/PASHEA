@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     crack_depth = args.crack_depth
     if crack_depth is None:
-        crack_depth = D.CRACK_ANGLE
+        crack_depth = D.CRACK_DEPTH
     
     empty_length = args.empty_length
     if empty_length is None:
