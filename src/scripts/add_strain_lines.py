@@ -4,23 +4,21 @@ import pathlib
 import pandas as pd
 import numpy as np
 from typing import List
-from pashea import AnalizeHEA
-from pashea import Default as D
+from pashea import AlloyAnalyzer
 """
-粒界モデルを作成する.
+input fileにstrainの行を加える
 """
 pd.set_option("display.max_rows", None)
 
 if __name__ == "__main__":
-    if pathlib.Path.exists(D.DOT_PATH):
-        D.set_default()
+    aa = AlloyAnalyzer()
 
     parser = argparse.ArgumentParser(
         description = "input.rdにstrainの情報を加える(z only)"
     )
-    parser.add_argument("-i", "--input_file", default=None, type=str,
+    parser.add_argument("-i", "--input_file", default=aa.D["addStrainLine"]["input_file_path"], type=str,
                         help = "input_file_path")
-    parser.add_argument("-v", "--strain_velocity", default=1.0, type=float,
+    parser.add_argument("-v", "--strain_velocity", default=aa.D["addStrainLine"]["strain_velocity"], type=float,
                         help = "strain_velocity")
     args = parser.parse_args()
 

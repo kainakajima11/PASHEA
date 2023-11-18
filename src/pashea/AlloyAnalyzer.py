@@ -2,19 +2,21 @@ import numpy as np
 from numpy.typing import ArrayLike
 import pandas as pd
 import pathlib
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Any
 from limda import SimulationFrame
+from .Default import load_yaml
 
-class AnalizeHEA:
+class AlloyAnalyzer:
+    D : dict[str, Any]
     def __init__(self):
-        pass
+        self.D = load_yaml(pathlib.Path.home() / ".pashea.yaml")
 
-    def consolidate_phase_ratio_file(
+    def consolidatePhaseRatioFile(
         self,
         input_dir : Union[str, pathlib.Path] = None,
-        filename : str = "phase_ratio",
+        filename : str = None,
         output_dir : Union[str, pathlib.Path] = None,
-        csv_filename : str = "PhaseRatio",
+        csv_filename : str = None,
     ):
         """
         合計原子数と各ステップのそれぞれの相の原子数の情報が入ったファイルを出力する。
@@ -79,34 +81,24 @@ class AnalizeHEA:
             f.write(f"AtomNum {AtomNum}\n\n")
         PhaseDf.to_csv(output_dir / csv_filename, sep=' ', mode='a', index=False)           
 
-    def MakeGBModel(
-        self,
-        carfile_path,
-        replicate_num,
-        crack_depth,
-        crack_angle,
-        output_file,
-        para,
-        type_ratio,
-        empty_length,
-        lattice_const,
-    ):
+    def makeGBModel(self):
         """
         粒界モデルを作成する
         """
+        d = self.D["makeGBModel"]
         sf = SimulationFrame()
-        if para is not None:
-            sf.import_para_from_list(para)
-        sf.import_car(carfile_path)
-        sf.change_lattice_const(lattice_const)
-        sf.replicate_atoms(replicate_num)
-        sf = self.make_precrack(sf, crack_depth, crack_angle)
+        sf.import_para_from_list(self.D["para"])
+        sf.import_car(d["car_file_path"])
+        sf.change_lattice_const(d["lattice_const"])
+        sf.replicate_atoms(d["replicate_num"])
+        sf = self.make_precrack(sf, d["crack_depth"], d["crack_angle"])
         sf.mirroring_atoms()
-        sf.shuffle_type_by_part(segment_num=[max(1,sf.cell[0]//10), max(1,sf.cell[1]//10), max(1,sf.cell[2]//10)],
-                                type_ratio=type_ratio)
-        sf.make_empty_space(empty_length=empty_length, direction = "y")
+        segment_num = [max(1,sf.cell[0]//d["shuffle_segment"][0]), max(1,sf.cell[1]//d["shuffle_segment"][1]), max(1,sf.cell[2]//d["shuffle_segment"][1])]
+        sf.shuffle_type_by_part(segment_num=segment_num,
+                                type_ratio=d["type_ratio"])
+        sf.make_empty_space(empty_length=d["empty_length"], direction = "y", both_direction = d["both_direction"])
         sf.slide_atoms([0.000001, 0.000001, 0.000001])
-        sf.export_input(output_file)
+        sf.export_input(d["output_file_path"])
         sf.export_dumppos("showdump.pos")
         print(len(sf))
         print(sf.cell)
