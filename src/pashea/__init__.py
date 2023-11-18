@@ -1,7 +1,5 @@
-from .AnalizeHEA import AnalizeHEA
-from . import Default 
+from .AlloyAnalyzer import AlloyAnalyzer
 
 __all__ = [
-    "AnalizeHEA"
-    "Default"
+    "AlloyAnalyzer"
 ]
