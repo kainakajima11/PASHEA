@@ -1,6 +1,8 @@
 import pathlib 
 import yaml
-from typing import Dict
+from typing import Dict,Final
+
+AVOGADORO_CONST:Final[float] = 6.02214076 * (10 ** 23)
 
 def load_yaml(path : pathlib.Path = None)->Dict:
     """
