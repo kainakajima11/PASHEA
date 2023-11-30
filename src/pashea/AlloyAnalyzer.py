@@ -14,6 +14,12 @@ class AlloyAnalyzer:
         self.D = load_yaml(pathlib.Path.home() / ".pashea.yaml")
         self.sf = SimulationFrame()
 
+    def get_volume(self):
+        """
+        sf.cell to volume (cm^3)
+        """
+        return np.prod(self.sf.cell) * (10 ** - 24)
+
     def consolidatePhaseRatioFile(
         self,
         input_dir : Union[str, pathlib.Path] = None,
@@ -94,7 +100,7 @@ class AlloyAnalyzer:
         self.sf.replicate_atoms(d["replicate_num"])
         self.make_precrack(d["crack_depth"], d["crack_angle"])
         self.sf.mirroring_atoms()
-        segment_num = [max(1,sf.cell[0]//d["shuffle_segment"][0]), max(1,sf.cell[1]//d["shuffle_segment"][1]), max(1,sf.cell[2]//d["shuffle_segment"][1])]
+        segment_num = [max(1,self.sf.cell[0]//d["shuffle_segment"][0]), max(1,self.sf.cell[1]//d["shuffle_segment"][1]), max(1,self.sf.cell[2]//d["shuffle_segment"][1])]
         self.sf.shuffle_type_by_part(segment_num=segment_num,
                                      type_ratio=d["type_ratio"])
         self.sf.make_empty_space(empty_length=d["empty_length"], direction = "y", both_direction = d["both_direction"])
@@ -109,15 +115,15 @@ class AlloyAnalyzer:
         crack_depth,
         crack_angle
     ):
-        crack_depth *= sf.cell[1]
+        crack_depth *= self.sf.cell[1]
         ax = np.array([])
         ay = np.array([])
         az = np.array([])
-        for x, y, z in zip(sf.atoms["x"], sf.atoms["y"], sf.atoms["z"]):
+        for x, y, z in zip(self.sf.atoms["x"], self.sf.atoms["y"], self.sf.atoms["z"]):
             judge :bool = False
-            if(y < sf.cell[1] - crack_depth):
+            if(y < self.sf.cell[1] - crack_depth):
                 judge = True
-            if(z > crack_angle * y - (sf.cell[1] - crack_depth) * crack_angle - 0.001):
+            if(z > crack_angle * y - (self.sf.cell[1] - crack_depth) * crack_angle - 0.001):
                 judge = True
             if judge:
                 ax = np.append(ax, x)
@@ -150,6 +156,24 @@ class AlloyAnalyzer:
             raise ValueError("This crystal type is not supported.")
         ratio_sum = np.sum(type_ratio)
         mass_sum = np.sum(np.array([type_ratio[i]*self.sf.atom_type_to_mass[i+1] for i in range(len(type_ratio))]))
-        volume = np.prod(cell_size) * (10 ** - 24)
+        volume = get_volume()
         return atom_num * mass_sum / ratio_sum / volume / AVOGADORO_CONST 
-            
+        
+    def calculateMolsNumNeeded(self,
+                               input_file_path : Union[str,pathlib.Path],
+                               alloy_density : float,
+                               aim_density : float,
+                               init_mol : ArrayLike) -> float:
+        """
+        指定分子を開いているスペースに何個入れたら、
+        指定密度になるかを計算する.
+        """
+        self.sf.import_file(input_file_path)
+        overall_volume = self.get_volume()
+        empty_space_volume = overall_volume - self.sf.density() * overall_volume / alloy_density
+        sf_init_mol = SimulationFrame()
+        sf_init_mol.cell = np.array([1.0,1.0,1.0])
+        sf_init_mol.atoms = pd.DataFrame({"type" : init_mol, "x":[0,0,0], "y":[0,0,0], "z":[0,0,0]})
+        mol_mass = sf_init_mol.density() * np.prod(sf_init_mol.cell) * (10 ** - 24)
+        return aim_density * empty_space_volume / mol_mass
+        
