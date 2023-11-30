@@ -130,9 +130,19 @@ class AlloyAnalyzer:
                 ay = np.append(ay, y)
                 az = np.append(az, z)
         self.sf.atoms = pd.DataFrame({"type":np.ones(len(ax)), "x":ax, "y":ay, "z":az})
-        
+
+    def getFrameTypeRatio(self):
+        """
+        type_ratioをsfから作成
+        """
+        typs = self.sf.atoms["type"]
+        type_ratio = [0 for i in range(len(self.sf.atom_type_to_mass))]
+        for typ in typs:
+            type_ratio[typ-1] += 1
+        return type_ratio
+           
     def calculateAlloyDensity(self,
-                              cell_size : ArrayLike = None,
+                              lattice_const : ArrayLike = None,
                               type_ratio : ArrayLike = None,
                               crystal_type : str = "FCC"):
         """
@@ -156,11 +166,10 @@ class AlloyAnalyzer:
             raise ValueError("This crystal type is not supported.")
         ratio_sum = np.sum(type_ratio)
         mass_sum = np.sum(np.array([type_ratio[i]*self.sf.atom_type_to_mass[i+1] for i in range(len(type_ratio))]))
-        volume = get_volume()
+        volume = np.prod(lattice_const) * (10 ** - 24)
         return atom_num * mass_sum / ratio_sum / volume / AVOGADORO_CONST 
         
     def calculateMolsNumNeeded(self,
-                               input_file_path : Union[str,pathlib.Path],
                                alloy_density : float,
                                aim_density : float,
                                init_mol : ArrayLike) -> float:
@@ -168,12 +177,12 @@ class AlloyAnalyzer:
         指定分子を開いているスペースに何個入れたら、
         指定密度になるかを計算する.
         """
-        self.sf.import_file(input_file_path)
         overall_volume = self.get_volume()
         empty_space_volume = overall_volume - self.sf.density() * overall_volume / alloy_density
         sf_init_mol = SimulationFrame()
         sf_init_mol.cell = np.array([1.0,1.0,1.0])
-        sf_init_mol.atoms = pd.DataFrame({"type" : init_mol, "x":[0,0,0], "y":[0,0,0], "z":[0,0,0]})
+        tmp_pos = [0 for i in range(len(init_mol))]
+        sf_init_mol.atoms = pd.DataFrame({"type" : init_mol, "x":tmp_pos, "y":tmp_pos, "z":tmp_pos})
         mol_mass = sf_init_mol.density() * np.prod(sf_init_mol.cell) * (10 ** - 24)
         return aim_density * empty_space_volume / mol_mass
         
