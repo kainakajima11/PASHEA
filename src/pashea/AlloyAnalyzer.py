@@ -98,11 +98,9 @@ class AlloyAnalyzer:
         self.sf.import_car(d["car_file_path"])
         self.sf.change_lattice_const(d["lattice_const"])
         self.sf.replicate_atoms(d["replicate_num"])
-        self.make_precrack(d["crack_depth"], d["crack_angle"])
         self.sf.mirroring_atoms()
-        segment_num = [max(1,self.sf.cell[0]//d["shuffle_segment"][0]), max(1,self.sf.cell[1]//d["shuffle_segment"][1]), max(1,self.sf.cell[2]//d["shuffle_segment"][1])]
-        self.sf.shuffle_type_by_part(segment_num=segment_num,
-                                     type_ratio=d["type_ratio"])
+        self.make_precrack(d["crack_depth"], d["crack_angle"])
+        self.sf.shuffle_type(type_ratio=d["type_ratio"])
         self.sf.make_empty_space(empty_length=d["empty_length"], direction = "y", both_direction = d["both_direction"])
         self.sf.slide_atoms([0.000001, 0.000001, 0.000001])
         self.sf.export_input(d["output_file_path"])
@@ -123,14 +121,16 @@ class AlloyAnalyzer:
             judge :bool = False
             if(y < self.sf.cell[1] - crack_depth):
                 judge = True
-            if(z > crack_angle * y - (self.sf.cell[1] - crack_depth) * crack_angle - 0.001):
+            if(z > crack_angle * y - (self.sf.cell[1] - crack_depth) * crack_angle - 0.001 + self.sf.cell[2]/2):
+                judge = True
+            if(z < - crack_angle * y + (self.sf.cell[1] - crack_depth) * crack_angle - 0.001 + self.sf.cell[2]/2):
                 judge = True
             if judge:
                 ax = np.append(ax, x)
                 ay = np.append(ay, y)
                 az = np.append(az, z)
         self.sf.atoms = pd.DataFrame({"type":np.ones(len(ax)), "x":ax, "y":ay, "z":az})
-
+        
     def getFrameTypeRatio(self):
         """
         type_ratioをsfから作成
