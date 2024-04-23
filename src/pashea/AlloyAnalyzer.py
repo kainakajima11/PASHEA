@@ -134,6 +134,7 @@ class AlloyAnalyzer:
         )
 
         if both_direction:
+            crack_angle = 1/3
             is_in_crack |= between_2_lines(
                 Line(-crack_angle, crack_depth * crack_angle + self.sf.cell[2]/2),
                 Line(crack_angle, - crack_depth * crack_angle + self.sf.cell[2]/2),
