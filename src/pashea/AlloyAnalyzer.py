@@ -99,9 +99,9 @@ class AlloyAnalyzer:
         self.sf.change_lattice_const(d["lattice_const"])
         self.sf.replicate_atoms(d["replicate_num"])
         self.sf.mirroring_atoms()
-        self.make_precrack(d["crack_depth"], d["crack_angle"])
+        self.make_precrack(d["crack_depth"], d["crack_angle"], d["both_direction"])
         self.sf.shuffle_type(type_ratio=d["type_ratio"])
-        self.sf.make_empty_space(empty_length=d["empty_length"], direction = "y", both_direction = d["both_direction"])
+        self.sf.make_empty_space(empty_length=d["empty_length"], direction = "y", both_direction = False)
         self.sf.slide_atoms([0.000001, 0.000001, 0.000001])
         self.sf.export_input(d["output_file_path"])
         self.sf.export_dumppos("showdump.pos")
@@ -111,26 +111,38 @@ class AlloyAnalyzer:
     def make_precrack(
         self,
         crack_depth,
-        crack_angle
+        crack_angle,
+        both_direction,
     ):
         crack_depth *= self.sf.cell[1]
-        ax = np.array([])
-        ay = np.array([])
-        az = np.array([])
-        for x, y, z in zip(self.sf.atoms["x"], self.sf.atoms["y"], self.sf.atoms["z"]):
-            judge :bool = False
-            if(y < self.sf.cell[1] - crack_depth):
-                judge = True
-            if(z > crack_angle * y - (self.sf.cell[1] - crack_depth) * crack_angle - 0.001 + self.sf.cell[2]/2):
-                judge = True
-            if(z < - crack_angle * y + (self.sf.cell[1] - crack_depth) * crack_angle - 0.001 + self.sf.cell[2]/2):
-                judge = True
-            if judge:
-                ax = np.append(ax, x)
-                ay = np.append(ay, y)
-                az = np.append(az, z)
-        self.sf.atoms = pd.DataFrame({"type":np.ones(len(ax)), "x":ax, "y":ay, "z":az})
+
+        class Line:
+            def __init__(self, a, b):
+                self.a = a
+                self.b = b
+            def get_online(self, x):
+                return self.a * x + self.b
+            
+        def between_2_lines(u: Line, l: Line, x, y):
+            return (l.get_online(x)  < y) & (y < u.get_online(x))
         
+        is_in_crack = between_2_lines(
+                Line(crack_angle, - (self.sf.cell[1] - crack_depth) * crack_angle + self.sf.cell[2]/2),
+                Line(-crack_angle, (self.sf.cell[1] - crack_depth) * crack_angle + self.sf.cell[2]/2),
+                self.sf.atoms["y"],
+                self.sf.atoms["z"],
+        )
+
+        if both_direction:
+            is_in_crack |= between_2_lines(
+                Line(-crack_angle, crack_depth * crack_angle + self.sf.cell[2]/2),
+                Line(crack_angle, - crack_depth * crack_angle + self.sf.cell[2]/2),
+                self.sf.atoms["y"],
+                self.sf.atoms["z"],
+            )
+
+        self.sf.delete_atoms(is_in_crack, reindex=True)
+
     def getFrameTypeRatio(self):
         """
         type_ratioをsfから作成
