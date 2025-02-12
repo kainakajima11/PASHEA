@@ -95,11 +95,16 @@ class AlloyAnalyzer:
         粒界モデルを作成する
         """
         d = self.D["makeGBModel"]
+        print(d)
         self.sf.import_car(d["car_file_path"])
         self.sf.change_lattice_const(d["lattice_const"])
         self.sf.replicate_atoms(d["replicate_num"])
         self.sf.mirroring_atoms()
-        self.make_precrack(d["crack_depth"], d["crack_angle"], d["both_direction"])
+        self.make_precrack(crack_depth = d["crack_depth"],
+                           crack_angle = d["crack_angle"],
+                           crack_size = d["crack_size"],
+                           crack_type = d["crack_type"],
+                           both_direction = d["both_direction"])
         self.sf.shuffle_type(type_ratio=d["type_ratio"])
         self.sf.make_empty_space(empty_length=d["empty_length"], direction = "y", both_direction = False)
         self.sf.slide_atoms([0.000001, 0.000001, 0.000001])
@@ -112,11 +117,12 @@ class AlloyAnalyzer:
         self,
         crack_depth,
         crack_angle,
+        crack_size,
+        crack_type,
         both_direction,
     ):
         crack_depth *= self.sf.cell[1]
-
-        class Line:
+        class Line: # y = ax + b
             def __init__(self, a, b):
                 self.a = a
                 self.b = b
@@ -126,22 +132,53 @@ class AlloyAnalyzer:
         def between_2_lines(u: Line, l: Line, x, y):
             return (l.get_online(x)  < y) & (y < u.get_online(x))
         
-        is_in_crack = between_2_lines(
-                Line(crack_angle, - (self.sf.cell[1] - crack_depth) * crack_angle + self.sf.cell[2]/2),
-                Line(-crack_angle, (self.sf.cell[1] - crack_depth) * crack_angle + self.sf.cell[2]/2),
-                self.sf.atoms["y"],
-                self.sf.atoms["z"],
-        )
+        def between_crack_height(z,a,b):
+            return (a < z) & (z < b)
 
-        if both_direction:
-            crack_angle = 1/3
-            is_in_crack |= between_2_lines(
-                Line(-crack_angle, crack_depth * crack_angle + self.sf.cell[2]/2),
-                Line(crack_angle, - crack_depth * crack_angle + self.sf.cell[2]/2),
-                self.sf.atoms["y"],
-                self.sf.atoms["z"],
-            )
+        def get_in_crack(
+                crack_depth, 
+                crack_angle,
+                crack_size,
+                crack_type,
+                both_direction
+                ):
+            is_in_crack = np.array([True for _ in range(len(self.sf))])
+            if crack_type == "Tri" or crack_type == "Hex":
+                is_in_crack = between_2_lines(
+                        Line(crack_angle, - (self.sf.cell[1] - crack_depth) * crack_angle + self.sf.cell[2]/2 + 0.1),
+                        Line(-crack_angle, (self.sf.cell[1] - crack_depth) * crack_angle + self.sf.cell[2]/2 - 0.1),
+                        self.sf.atoms["y"],
+                        self.sf.atoms["z"],
+                )
+            if crack_type == "Hex":
+                is_in_crack &= between_crack_height(
+                    self.sf.atoms["z"],
+                    self.sf.cell[2]/2 - crack_size,
+                    self.sf.cell[2]/2 + crack_size
+                )
+            if crack_type == "Rec":
+                is_in_crack = between_2_lines(
+                        Line(0, crack_size + self.sf.cell[2]/2),
+                        Line(0,-crack_size + self.sf.cell[2]/2),
+                        self.sf.atoms["y"],
+                        self.sf.atoms["z"],
+                )
+                is_in_crack &= between_crack_height(
+                    self.sf.atoms["y"],
+                    self.sf.cell[1] - crack_depth,
+                    self.sf.cell[1]
+                )
+            if both_direction:
+                crack_angle = 1/3
+                is_in_crack |= between_2_lines(
+                    Line(-crack_angle, crack_depth * crack_angle + self.sf.cell[2]/2),
+                    Line(crack_angle, - crack_depth * crack_angle + self.sf.cell[2]/2),
+                    self.sf.atoms["y"],
+                    self.sf.atoms["z"],
+                )
+            return is_in_crack
 
+        is_in_crack = get_in_crack(crack_depth, crack_angle, crack_size, crack_type, both_direction)
         self.sf.delete_atoms(is_in_crack, reindex=True)
 
     def getFrameTypeRatio(self):
