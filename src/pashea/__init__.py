@@ -1,7 +1,6 @@
 from .AlloyAnalyzer import AlloyAnalyzer
-from .VaspHolder import VaspHolder
+from .AlloyUtils import AlloyUtils
 
 __all__ = [
     "AlloyAnalyzer",
-    "VaspHolder"
 ]
