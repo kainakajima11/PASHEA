@@ -17,7 +17,7 @@ if __name__ == "__main__":
         description = "input.rdにstrainの情報を加える(z only)"
     )
     parser.add_argument("-i", "--input_file", default=aa.D["addStrainLine"]["input_file_path"], type=str,
-                        help = "input_file_path")
+                        help = "input_file")
     parser.add_argument("-v", "--strain_velocity", default=aa.D["addStrainLine"]["strain_velocity"], type=float,
                         help = "strain_velocity")
     args = parser.parse_args()
